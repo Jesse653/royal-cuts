@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum UserRole {
+  OWNER
+  BARBER
+  CUSTOMER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+//////////////////////
+// TENANT
+//////////////////////
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  dbConnectionUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  barbers           Barber[]
+  customers         Customer[]
+  appointments      Appointment[]
+  services          Service[]
+  transactions      Transaction[]
+  availabilityRules AvailabilityRule[]
+
+  @@index([slug])
+}
+
+//////////////////////
+// USERS (AUTH)
+//////////////////////
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  barber   Barber?
+  customer Customer?
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+//////////////////////
+// BARBERS
+//////////////////////
+
+model Barber {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  availabilityRules AvailabilityRule[]
+  appointments      Appointment[]
+  services          Service[]
+  transactions      Transaction[]
+
+  @@index([tenantId])
+}
+
+//////////////////////
+// CUSTOMERS
+//////////////////////
+
+model Customer {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?  @unique
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  appointments Appointment[]
+
+  @@index([tenantId])
+}
+
+//////////////////////
+// SERVICES
+//////////////////////
+
+model Service {
+  id          String   @id @default(uuid())
+  tenantId    String
+  barberId    String?
+  name        String
+  priceCents  Int
+  durationMin Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  barber Barber? @relation(fields: [barberId], references: [id], onDelete: SetNull)
+
+  appointments Appointment[]
+
+  @@index([tenantId])
+}
+
+//////////////////////
+// AVAILABILITY RULES
+//////////////////////
+
+model AvailabilityRule {
+  id        String   @id @default(uuid())
+  tenantId  String
+  barberId  String
+  dayOfWeek Int // 0 = Sunday, 6 = Saturday
+  startTime String // "09:00"
+  endTime   String // "17:00"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, dayOfWeek, startTime, endTime])
+  @@index([tenantId])
+}
+
+//////////////////////
+// APPOINTMENTS
+//////////////////////
+
+model Appointment {
+  id         String            @id @default(uuid())
+  tenantId   String
+  barberId   String
+  customerId String
+  serviceId  String
+  startTime  DateTime
+  endTime    DateTime
+  status     AppointmentStatus
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  barber   Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([barberId, startTime])
+}
+
+//////////////////////
+// FINANCIALS
+//////////////////////
+
+model Transaction {
+  id          String          @id @default(uuid())
+  tenantId    String
+  barberId    String?
+  type        TransactionType
+  amountCents Int
+  description String?
+  createdAt   DateTime        @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  barber Barber? @relation(fields: [barberId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
