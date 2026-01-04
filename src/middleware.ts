@@ -5,23 +5,20 @@ export function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     const url = request.nextUrl;
 
-    // 1. Check for tenantId in query params (useful for dev/testing)
+    // --- Tenant Logic ---
     let tenantId = url.searchParams.get("tenantId");
 
-    // 2. Fallback: Check hostname (e.g. tenant.domain.com)
+    // Fallback: Check hostname
     const host = request.headers.get("host");
     if (!tenantId && host) {
-        // Basic subdomain extraction logic
-        // Localhost: tenant.localhost means nothing unless /etc/hosts is set.
-        // This is just a placeholder logic.
         const parts = host.split(".");
+        // This makes an assumption about the domain structure: tenant.domain.com
         if (parts.length > 2) {
-            // e.g. tenant.example.com
             tenantId = parts[0];
         }
     }
 
-    // 3. Fallback: Header (from upstream proxy)
+    // Fallback: Header
     if (!tenantId && request.headers.has("x-tenant-id")) {
         tenantId = request.headers.get("x-tenant-id");
     }
@@ -30,16 +27,49 @@ export function middleware(request: NextRequest) {
         requestHeaders.set("x-tenant-id", tenantId);
     }
 
+    // --- RBAC Logic ---
+
+    // Mock Session - In a real app, verify JWT/Session
+    // We are reading a cookie named 'user_role' for demonstration/MVP
+    const userRoleCookie = request.cookies.get("user_role");
+    const userRole = userRoleCookie ? userRoleCookie.value : null;
+
+    const pathname = url.pathname;
+
+    // Protected Routes Definition
+    const barberRoutes = ["/barber"];
+    const customerRoutes = ["/customer"];
+
+    const isBarberRoute = barberRoutes.some(route => pathname.startsWith(route));
+    const isCustomerRoute = customerRoutes.some(route => pathname.startsWith(route));
+
+    // 1. Protect Barber Routes
+    if (isBarberRoute) {
+        if (userRole !== "BARBER") {
+            // Redirect to home if not authorized
+            // Ideally redirect to login with a ?redirect= param
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+    }
+
+    // 2. Protect Customer Routes
+    if (isCustomerRoute) {
+        if (userRole !== "CUSTOMER") {
+            // Redirect to home if not authorized
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+    }
+
     return NextResponse.next({
         request: {
-            headers: requestHeaders,
-        },
+            headers: requestHeaders
+        }
     });
 }
 
 export const config = {
     matcher: [
         // Match all request paths except for static files/assets
-        "/((?!_next/static|_next/image|favicon.ico).*)",
-    ],
+        "/((?!_next/static|_next/image|favicon.ico).*)"
+    ]
 };
