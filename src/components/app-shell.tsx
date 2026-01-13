@@ -8,31 +8,31 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { cn } from "@/lib/utils";
 
-export default function DashboardLayout({
-    children
-}: Readonly<{
-    children: React.ReactNode;
-}>) {
+export function AppShell({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
 
     const isCustomer = pathname?.startsWith("/customer");
     const isBarber = pathname?.startsWith("/barber");
+    const isDashboard = isCustomer || isBarber;
+
+    // Use a simple check: if not dashboard, render children directly (public pages)
+    if (!isDashboard) {
+        return <>{children}</>;
+    }
 
     // Dynamic Navigation items based on role
     const getNavItems = () => {
         if (isCustomer) {
             return [
                 { label: "Home", href: "/customer", icon: Home },
-                { label: "Book", href: "/customer/book", icon: Scissors } // Placeholder route
-                // { label: "Profile", href: "/customer/profile", icon: User }, // handled separately in bottom nav often, but good to have
+                { label: "Book", href: "/customer/book", icon: Scissors }
             ];
         }
         if (isBarber) {
             return [
                 { label: "Dashboard", href: "/barber", icon: Home },
                 { label: "Schedule", href: "/barber/schedule", icon: Calendar }
-                // { label: "Clients", href: "/barber/clients", icon: User },
             ];
         }
         return [];
@@ -51,7 +51,7 @@ export default function DashboardLayout({
                 <span>Home</span>
             </Link>
             <Link
-                href={isBarber ? "/barber/schedule" : "/customer/book"} // Contextual link
+                href={isBarber ? "/barber/schedule" : "/customer/book"}
                 className="flex flex-col items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
             >
                 {isBarber ? <Calendar className="h-6 w-6" /> : <Scissors className="h-6 w-6" />}

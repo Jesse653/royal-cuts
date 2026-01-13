@@ -1,0 +1,55 @@
+// import { NextResponse } from "next/server";
+// import type { NextRequest } from "next/server";
+//
+// export function middleware(request: NextRequest) {
+//     const url = request.nextUrl;
+//     const pathname = url.pathname;
+//
+//     // --- Tenant Logic ---
+//     let tenantId = url.searchParams.get("tenantId");
+//
+//     const host = request.headers.get("host");
+//     if (!tenantId && host) {
+//         const parts = host.split(".");
+//         if (parts.length > 2) {
+//             tenantId = parts[0];
+//         }
+//     }
+//
+//     if (!tenantId && request.headers.has("x-tenant-id")) {
+//         tenantId = request.headers.get("x-tenant-id");
+//     }
+//
+//     const headers = new Headers(request.headers);
+//     if (tenantId) {
+//         headers.set("x-tenant-id", tenantId);
+//     }
+//
+//     // --- RBAC Logic ---
+//     const userRole = request.cookies.get("user_role")?.value ?? null;
+//
+//     // Allow unauthenticated access to public routes
+//     if (pathname === "/" || pathname === "/login") {
+//         return NextResponse.next({ request: { headers } });
+//     }
+//
+//     // Protect Barber Routes
+//     if (pathname.startsWith("/barber") && userRole !== "BARBER") {
+//         return NextResponse.redirect(new URL("/login", request.url));
+//     }
+//
+//     // Protect Customer Routes
+//     if (pathname.startsWith("/customer") && userRole !== "CUSTOMER") {
+//         return NextResponse.redirect(new URL("/login", request.url));
+//     }
+//
+//     return NextResponse.next({
+//         request: {
+//             headers
+//         }
+//     });
+// }
+//
+// export const config = {
+//     matcher: ["/barber/:path*", "/customer/:path*"]
+// };
